@@ -1,0 +1,152 @@
+# AI Sales Outreach Agent — Implementation Plan
+
+A multi-agent AI sales automation system that researches prospects, generates hyper-personalized outreach emails, sends via Gmail, tracks replies, and updates a CRM — all orchestrated autonomously.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **API Keys Required** — You will need to provide API keys for:
+> - **OpenAI** (`OPENAI_API_KEY`) — for LLM-powered email generation
+> - **Tavily** (`TAVILY_API_KEY`) — for web search / prospect research
+> - **Gmail** (`credentials.json`) — OAuth2 credentials from Google Cloud Console
+> - **Notion** (`NOTION_API_KEY` + database ID) or **Airtable** — for CRM
+>
+> The system will work with placeholder/mock modes for local development without keys.
+
+> [!WARNING]
+> **Gmail API requires OAuth2 setup.** You must create a project in Google Cloud Console, enable the Gmail API, and download `credentials.json`. The first run will open a browser for authorization.
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  FastAPI Backend                     │
+│  /api/prospects  /api/campaigns  /api/analytics      │
+├──────────────────────┬──────────────────────────────┤
+│    LangGraph Agent   │      Vector Memory           │
+│    Orchestrator      │      (ChromaDB)              │
+├──────┬───────┬───────┼───────┬──────────────────────┤
+│Research│Email │Gmail  │Reply  │  CRM Agent           │
+│Agent   │Agent │Agent  │Track  │  (Notion/Airtable)   │
+│(Tavily)│(LLM) │(API)  │Agent  │                      │
+└──────┴───────┴───────┴───────┴──────────────────────┘
+         ↕               ↕              ↕
+    Web Search       Gmail API      Notion API
+```
+
+---
+
+## Proposed Changes
+
+### Project Scaffold & Configuration
+
+#### [NEW] [requirements.txt](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/requirements.txt)
+Dependencies: `fastapi`, `uvicorn`, `langchain`, `langgraph`, `langchain-openai`, `tavily-python`, `chromadb`, `google-api-python-client`, `google-auth-oauthlib`, `httpx`, `pydantic`, `python-dotenv`, `jinja2`, `notion-client`.
+
+#### [NEW] [.env.example](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/.env.example)
+Template for all required environment variables.
+
+#### [NEW] [app/config.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/config.py)
+Pydantic `Settings` class loading from `.env` with defaults and mock modes.
+
+---
+
+### Database & Memory Layer
+
+#### [NEW] [app/models.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/models.py)
+Pydantic models: `Prospect`, `Campaign`, `OutreachEmail`, `CRMRecord`, `AgentState`.
+
+#### [NEW] [app/memory.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/memory.py)
+ChromaDB vector store wrapper — stores past interactions, research data, and email history for contextual memory across agent runs.
+
+#### [NEW] [app/database.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/database.py)
+SQLite-based local storage via SQLAlchemy for prospects, campaigns, and outreach tracking.
+
+---
+
+### Agent System (LangGraph)
+
+#### [NEW] [app/agents/orchestrator.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/agents/orchestrator.py)
+LangGraph `StateGraph` that defines the agent pipeline:
+1. **research** → 2. **generate_email** → 3. **send_email** → 4. **update_crm** → 5. **track_reply**
+
+Conditional edges for retry logic, human-in-the-loop approval, and error handling.
+
+#### [NEW] [app/agents/research_agent.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/agents/research_agent.py)
+Uses Tavily API to search for company info, prospect LinkedIn/social profiles, recent news, tech stack, and funding data. Stores results in vector memory.
+
+#### [NEW] [app/agents/email_agent.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/agents/email_agent.py)
+Uses OpenAI to generate hyper-personalized outreach emails based on research data. Supports multiple tones (professional, casual, consultative) and follow-up sequences.
+
+#### [NEW] [app/agents/gmail_agent.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/agents/gmail_agent.py)
+Gmail API integration — authenticates via OAuth2, sends emails, checks for replies in threads, and reports delivery status.
+
+#### [NEW] [app/agents/crm_agent.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/agents/crm_agent.py)
+Updates Notion database (or Airtable) with prospect status, outreach history, reply tracking, and pipeline stage.
+
+#### [NEW] [app/agents/reply_tracker.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/agents/reply_tracker.py)
+Polls Gmail for thread replies, classifies sentiment (positive/negative/neutral) via LLM, and triggers follow-up actions.
+
+---
+
+### Tools & Utilities
+
+#### [NEW] [app/tools/search.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/tools/search.py)
+LangChain tool wrappers for Tavily search with structured output parsing.
+
+#### [NEW] [app/tools/gmail.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/tools/gmail.py)
+Gmail API helper functions: auth, send, read, thread management.
+
+#### [NEW] [app/tools/crm.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/tools/crm.py)
+Notion/Airtable API wrappers for CRUD operations on CRM records.
+
+---
+
+### FastAPI Backend
+
+#### [NEW] [app/main.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/main.py)
+FastAPI app entry point with CORS, static files for dashboard, and API router registration.
+
+#### [NEW] [app/routes/prospects.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/routes/prospects.py)
+CRUD endpoints: `POST /api/prospects`, `GET /api/prospects`, `GET /api/prospects/{id}`.
+
+#### [NEW] [app/routes/campaigns.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/routes/campaigns.py)
+Campaign management: `POST /api/campaigns/launch`, `GET /api/campaigns/{id}/status`.
+
+#### [NEW] [app/routes/analytics.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/routes/analytics.py)
+Dashboard data: `GET /api/analytics/overview`, `GET /api/analytics/replies`.
+
+#### [NEW] [app/routes/webhooks.py](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/app/routes/webhooks.py)
+Gmail push notification webhook for real-time reply tracking.
+
+---
+
+### Frontend Dashboard
+
+#### [NEW] [static/index.html](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/static/index.html)
+Single-page dashboard with dark-mode glassmorphism design. Sections: Overview, Prospects, Campaigns, Analytics.
+
+#### [NEW] [static/styles.css](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/static/styles.css)
+Premium CSS with CSS variables, gradients, micro-animations, and responsive layout.
+
+#### [NEW] [static/app.js](file:///c:/Users/nihan/Desktop/AI%20Sales%20Outreach%20Agent/static/app.js)
+Vanilla JS for API calls, dynamic rendering, real-time status updates, and interactive charts.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+1. **Run the server**: `cd c:\Users\nihan\Desktop\AI Sales Outreach Agent && python -m uvicorn app.main:app --reload --port 8000`
+2. **Test API endpoints** via browser subagent:
+   - Navigate to `http://localhost:8000/docs` (Swagger UI) — verify all endpoints listed
+   - `POST /api/prospects` with sample data — verify 200 response
+   - `GET /api/prospects` — verify list returned
+   - `POST /api/campaigns/launch` — verify campaign starts (mock mode)
+
+### Manual Verification
+1. **Dashboard UI**: Open `http://localhost:8000` in browser — verify dark-mode dashboard loads with all sections
+2. **Agent Pipeline**: Trigger a campaign with a test prospect and verify each agent step executes in sequence (logs visible in terminal)
+3. **User to test Gmail/Notion integration** with their own API keys once configured
