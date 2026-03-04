@@ -12,6 +12,18 @@ from app.models import (
 )
 from app.database import db
 from app.agents.orchestrator import run_outreach_pipeline
+from pydantic import BaseModel
+
+
+# Quick outreach request model
+class QuickOutreachRequest(BaseModel):
+    """Request model for quick outreach endpoint."""
+    name: str
+    email: str
+    company: str
+    title: str = ""
+    tone: str = "professional"
+    send: bool = True
 
 router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
 
@@ -93,40 +105,55 @@ async def get_campaign_emails(campaign_id: str):
 
 
 @router.post("/quick-outreach")
-async def quick_outreach(
-    name: str,
-    email: str,
-    company: str,
-    title: str = "",
-    tone: str = "professional",
-    send: bool = True,
-    background_tasks: BackgroundTasks = None
-):
+async def quick_outreach(request: QuickOutreachRequest):
     """
     Quick one-off outreach to a single prospect.
     Creates the prospect and runs the full pipeline immediately.
+    
+    Usage in Postman:
+    POST http://localhost:8000/api/campaigns/quick-outreach
+    
+    Body (JSON):
+    {
+        "name": "John Doe",
+        "email": "john@example.com",
+        "company": "Acme Corp",
+        "title": "CEO",
+        "tone": "professional",
+        "send": true
+    }
     """
     # Create prospect
     prospect = Prospect(
-        name=name,
-        email=email,
-        company=company,
-        title=title,
+        name=request.name,
+        email=request.email,
+        company=request.company,
+        title=request.title,
     )
     db.add_prospect(prospect)
 
     # Run pipeline
     result = await run_outreach_pipeline(
         prospect=prospect,
-        should_send=send,
-        tone=tone
+        should_send=request.send,
+        tone=request.tone
     )
+
+    # Handle None result
+    if not result:
+        return {
+            "message": "Outreach pipeline failed",
+            "prospect_id": prospect.id,
+            "status": "failed",
+            "email_subject": "",
+            "errors": ["Pipeline returned no result"],
+        }
 
     return {
         "message": "Outreach pipeline completed",
         "prospect_id": prospect.id,
         "status": result.get("current_step", "unknown"),
-        "email_subject": result.get("email", {}).get("subject", ""),
+        "email_subject": result.get("email", {}).get("subject", "") if result.get("email") else "",
         "errors": result.get("errors", []),
     }
 
@@ -155,12 +182,20 @@ async def _execute_campaign(campaign: Campaign):
         print(f"\n── Prospect {i+1}/{len(campaign.prospect_ids)}: {prospect.name} ──")
 
         try:
-            await run_outreach_pipeline(
+            result = await run_outreach_pipeline(
                 prospect=prospect,
                 campaign_id=campaign.id,
                 should_send=True,
                 tone=campaign.tone.value
             )
+            
+            # Update campaign stats if email was successfully sent
+            if result and result.get("current_step") != "send_failed":
+                campaign = db.get_campaign(campaign.id)
+                if campaign:
+                    campaign.emails_sent += 1
+                    db.update_campaign(campaign)
+                    print(f"✅ Email sent ({campaign.emails_sent}/{campaign.total_prospects})")
         except Exception as e:
             print(f"❌ Pipeline failed for {prospect.name}: {e}")
 

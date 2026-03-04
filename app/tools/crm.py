@@ -1,5 +1,5 @@
 """
-Notion CRM tool for managing prospect pipeline.
+Airtable CRM tool for managing prospect pipeline.
 Falls back to mock/logging mode when API key is not configured.
 """
 
@@ -10,30 +10,31 @@ from app.config import settings
 from app.models import ProspectStatus
 
 
-class NotionCRM:
-    """Notion API wrapper for CRM operations."""
+class AirtableCRM:
+    """Airtable API wrapper for CRM operations."""
 
     def __init__(self):
-        self.client = None
+        self.table = None
         self._initialized = False
 
     def initialize(self):
-        """Lazy init of Notion client."""
+        """Lazy init of Airtable client."""
         if self._initialized:
             return
 
-        if settings.mock_mode or not settings.has_notion:
-            print("📋 Notion CRM running in mock mode")
+        if settings.mock_mode or not settings.has_airtable:
+            print("📋 Airtable CRM running in mock mode")
             self._initialized = True
             return
 
         try:
-            from notion_client import Client
-            self.client = Client(auth=settings.notion_api_key)
+            from pyairtable import Api
+            api = Api(settings.airtable_api_key)
+            self.table = api.table(settings.airtable_base_id, settings.airtable_table_name)
             self._initialized = True
-            print("✅ Notion CRM connected")
+            print("✅ Airtable CRM connected")
         except Exception as e:
-            print(f"⚠️  Notion initialization failed: {e}")
+            print(f"⚠️  Airtable initialization failed: {e}")
             self._initialized = True
 
     async def create_prospect_page(
@@ -45,161 +46,128 @@ class NotionCRM:
         title: str = "",
         notes: str = ""
     ) -> Dict[str, Any]:
-        """Create a new prospect page in Notion database."""
+        """Create a new prospect record in Airtable."""
         self.initialize()
 
-        if not self.client:
+        if not self.table:
             return self._mock_create(name, email, company, status)
 
         try:
-            properties = {
-                "Name": {"title": [{"text": {"content": name}}]},
-                "Email": {"email": email},
-                "Company": {"rich_text": [{"text": {"content": company}}]},
-                "Status": {"select": {"name": status}},
+            fields = {
+                "Name": name,
+                "Email": email,
+                "Company": company,
+                "Status": status,
             }
 
             if title:
-                properties["Title"] = {"rich_text": [{"text": {"content": title}}]}
+                fields["Title"] = title
+            if notes:
+                fields["Notes"] = notes
 
-            page = self.client.pages.create(
-                parent={"database_id": settings.notion_database_id},
-                properties=properties,
-                children=[
-                    {
-                        "object": "block",
-                        "type": "paragraph",
-                        "paragraph": {
-                            "rich_text": [{"type": "text", "text": {"content": notes or "Auto-created by AI Sales Agent"}}]
-                        }
-                    }
-                ] if notes else []
-            )
+            record = self.table.create(fields)
 
             return {
                 "success": True,
-                "page_id": page["id"],
-                "url": page.get("url", ""),
+                "record_id": record["id"],
+                "url": f"https://airtable.com/{settings.airtable_base_id}/{settings.airtable_table_name}/{record['id']}",
             }
 
         except Exception as e:
-            print(f"⚠️  Failed to create Notion page: {e}")
+            print(f"⚠️  Failed to create Airtable record: {e}")
             return {"success": False, "error": str(e)}
 
     async def update_prospect_status(
         self,
-        page_id: str,
+        record_id: str,
         status: str,
         notes: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Update a prospect's status in Notion."""
+        """Update a prospect's status in Airtable."""
         self.initialize()
 
-        if not self.client:
-            return self._mock_update(page_id, status)
+        if not self.table:
+            return self._mock_update(record_id, status)
 
         try:
-            properties = {
-                "Status": {"select": {"name": status}},
-                "Last Updated": {"date": {"start": datetime.utcnow().isoformat()}}
+            fields = {
+                "Status": status,
+                "Last Updated": datetime.utcnow().isoformat(),
             }
 
-            self.client.pages.update(
-                page_id=page_id,
-                properties=properties
-            )
-
             if notes:
-                self.client.blocks.children.append(
-                    block_id=page_id,
-                    children=[{
-                        "object": "block",
-                        "type": "paragraph",
-                        "paragraph": {
-                            "rich_text": [{"type": "text", "text": {"content": f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M')}] {notes}"}}]
-                        }
-                    }]
-                )
+                # Append to existing notes
+                try:
+                    existing = self.table.get(record_id)
+                    existing_notes = existing["fields"].get("Notes", "")
+                    fields["Notes"] = f"{existing_notes}\n{notes}" if existing_notes else notes
+                except Exception:
+                    fields["Notes"] = notes
 
-            return {"success": True, "page_id": page_id}
+            self.table.update(record_id, fields)
+            return {"success": True, "record_id": record_id}
 
         except Exception as e:
-            print(f"⚠️  Failed to update Notion page: {e}")
+            print(f"⚠️  Failed to update Airtable record: {e}")
             return {"success": False, "error": str(e)}
 
     async def get_prospects(self, status_filter: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Query prospects from Notion database."""
+        """Query prospects from Airtable."""
         self.initialize()
 
-        if not self.client:
+        if not self.table:
             return self._mock_list()
 
         try:
-            filter_obj = None
+            formula = None
             if status_filter:
-                filter_obj = {
-                    "property": "Status",
-                    "select": {"equals": status_filter}
-                }
+                formula = f"{{Status}} = '{status_filter}'"
 
-            response = self.client.databases.query(
-                database_id=settings.notion_database_id,
-                filter=filter_obj
-            )
+            records = self.table.all(formula=formula)
 
             prospects = []
-            for page in response.get("results", []):
-                props = page.get("properties", {})
+            for record in records:
+                fields = record.get("fields", {})
                 prospects.append({
-                    "page_id": page["id"],
-                    "name": self._get_title(props.get("Name", {})),
-                    "email": props.get("Email", {}).get("email", ""),
-                    "company": self._get_rich_text(props.get("Company", {})),
-                    "status": props.get("Status", {}).get("select", {}).get("name", ""),
+                    "record_id": record["id"],
+                    "name": fields.get("Name", ""),
+                    "email": fields.get("Email", ""),
+                    "company": fields.get("Company", ""),
+                    "status": fields.get("Status", ""),
                 })
 
             return prospects
 
         except Exception as e:
-            print(f"⚠️  Failed to query Notion: {e}")
+            print(f"⚠️  Failed to query Airtable: {e}")
             return []
-
-    # ──────────── Helpers ────────────
-
-    def _get_title(self, prop: Dict) -> str:
-        title_list = prop.get("title", [])
-        return title_list[0].get("text", {}).get("content", "") if title_list else ""
-
-    def _get_rich_text(self, prop: Dict) -> str:
-        rt_list = prop.get("rich_text", [])
-        return rt_list[0].get("text", {}).get("content", "") if rt_list else ""
 
     # ──────────── Mock Methods ────────────
 
     def _mock_create(self, name: str, email: str, company: str, status: str) -> Dict[str, Any]:
         import uuid
-        page_id = str(uuid.uuid4())
+        record_id = str(uuid.uuid4())
 
-        print(f"\n📋 MOCK CRM: Created prospect page")
+        print(f"\n📋 MOCK CRM: Created prospect record")
         print(f"   Name: {name} | Company: {company}")
         print(f"   Email: {email} | Status: {status}")
-        print(f"   Page ID: {page_id}\n")
+        print(f"   Record ID: {record_id}\n")
 
         return {
             "success": True,
-            "page_id": f"mock_{page_id}",
-            "url": f"https://notion.so/mock/{page_id}",
+            "record_id": f"mock_{record_id}",
+            "url": f"https://airtable.com/mock/{record_id}",
             "mock": True
         }
 
-    def _mock_update(self, page_id: str, status: str) -> Dict[str, Any]:
-        print(f"📋 MOCK CRM: Updated {page_id} → {status}")
-        return {"success": True, "page_id": page_id, "mock": True}
+    def _mock_update(self, record_id: str, status: str) -> Dict[str, Any]:
+        print(f"📋 MOCK CRM: Updated {record_id} → {status}")
+        return {"success": True, "record_id": record_id, "mock": True}
 
     def _mock_list(self) -> List[Dict[str, Any]]:
         return [
             {
-                "page_id": "mock_page_1",
+                "record_id": "mock_record_1",
                 "name": "Sample Prospect",
                 "email": "sample@example.com",
                 "company": "Sample Corp",
@@ -209,4 +177,4 @@ class NotionCRM:
 
 
 # Global instance
-notion_crm = NotionCRM()
+airtable_crm = AirtableCRM()

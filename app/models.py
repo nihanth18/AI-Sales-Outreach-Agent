@@ -115,7 +115,7 @@ class Campaign(BaseModel):
 
 class CRMRecord(BaseModel):
     prospect_id: str
-    notion_page_id: Optional[str] = None
+    airtable_record_id: Optional[str] = None
     status: ProspectStatus = ProspectStatus.NEW
     last_contacted: Optional[datetime] = None
     next_follow_up: Optional[datetime] = None

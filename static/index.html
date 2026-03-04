@@ -1,380 +1,121 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="AI Sales Outreach Agent — Multi-agent AI system for automated prospect research, personalized email outreach, and CRM management.">
-    <title>AI Sales Outreach Agent — Dashboard</title>
-    <link rel="stylesheet" href="/static/styles.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Sales Outreach Agent Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
 </head>
+
 <body>
-    <div class="app">
-        <!-- ─── Sidebar ─── -->
-        <nav class="sidebar" id="sidebar">
-            <div class="logo">
-                <div class="logo-icon">🤖</div>
-                <div>
-                    <div class="logo-text">SalesAgent AI</div>
-                    <div class="logo-sub">Outreach Automation</div>
-                </div>
-            </div>
+    <div class="container">
+        <header class="glass-header">
+            <h1>🤖 AI Sales Outreach Agent</h1>
+            <div class="header-subtitle">Automated AI-powered sales outreach platform</div>
+        </header>
 
-            <div class="nav-section">
-                <div class="nav-label">Main</div>
-                <div class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
-                    <span class="nav-icon">📊</span> Dashboard
-                </div>
-                <div class="nav-item" data-page="prospects" onclick="navigateTo('prospects')">
-                    <span class="nav-icon">👥</span> Prospects
-                </div>
-                <div class="nav-item" data-page="campaigns" onclick="navigateTo('campaigns')">
-                    <span class="nav-icon">🚀</span> Campaigns
-                </div>
-                <div class="nav-item" data-page="outreach" onclick="navigateTo('outreach')">
-                    <span class="nav-icon">✉️</span> Quick Outreach
-                </div>
-            </div>
-
-            <div class="nav-section">
-                <div class="nav-label">System</div>
-                <div class="nav-item" data-page="pipeline" onclick="navigateTo('pipeline')">
-                    <span class="nav-icon">⚙️</span> Pipeline Status
-                </div>
-            </div>
-
-            <div class="sidebar-footer">
-                <div>
-                    <span class="status-dot" id="statusDot"></span>
-                    <span class="status-text" id="statusText">Connected</span>
-                    <span class="mock-badge" id="mockBadge" style="display:none">MOCK</span>
-                </div>
-            </div>
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+            <button class="tab-btn" data-tab="prospects">Prospects</button>
+            <button class="tab-btn" data-tab="campaigns">Campaigns</button>
+            <button class="tab-btn" data-tab="analytics">Analytics</button>
         </nav>
 
-        <!-- ─── Main Content ─── -->
-        <main class="main-content">
-
-            <!-- ═══════ Dashboard Page ═══════ -->
-            <div class="page active" id="page-dashboard">
-                <div class="page-header">
-                    <h1>Dashboard</h1>
-                    <p>Overview of your sales outreach performance</p>
+        <main class="glass-card">
+            <!-- Dashboard Tab -->
+            <section id="dashboard" class="tab-content active">
+                <h2>System Status</h2>
+                <div id="status-display" class="status-grid">
+                    <div class="status-item loading">Loading status...</div>
                 </div>
+            </section>
 
-                <div class="stats-grid" id="statsGrid">
-                    <div class="stat-card">
-                        <div class="stat-icon purple">👥</div>
-                        <div class="stat-value" id="statProspects">0</div>
-                        <div class="stat-label">Total Prospects</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon blue">📧</div>
-                        <div class="stat-value" id="statEmails">0</div>
-                        <div class="stat-label">Emails Sent</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon pink">💬</div>
-                        <div class="stat-value" id="statReplies">0</div>
-                        <div class="stat-label">Replies Received</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon green">📈</div>
-                        <div class="stat-value" id="statRate">0%</div>
-                        <div class="stat-label">Response Rate</div>
-                    </div>
-                </div>
-
-                <div class="section-grid">
-                    <div class="section-card">
-                        <div class="section-header">
-                            <span class="section-title">Recent Emails</span>
-                            <span class="section-action" onclick="navigateTo('campaigns')">View All →</span>
-                        </div>
-                        <div id="recentEmails">
-                            <div class="empty-state">
-                                <div class="empty-state-icon">📭</div>
-                                <div class="empty-state-text">No emails sent yet</div>
-                                <div class="empty-state-sub">Launch a campaign or use Quick Outreach</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="section-card">
-                        <div class="section-header">
-                            <span class="section-title">Activity Feed</span>
-                            <span class="section-action" onclick="refreshActivity()">Refresh ↻</span>
-                        </div>
-                        <ul class="activity-list" id="activityFeed">
-                            <div class="empty-state">
-                                <div class="empty-state-icon">📋</div>
-                                <div class="empty-state-text">No activity yet</div>
-                                <div class="empty-state-sub">Start by adding some prospects</div>
-                            </div>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ═══════ Prospects Page ═══════ -->
-            <div class="page" id="page-prospects">
-                <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
-                    <div>
-                        <h1>Prospects</h1>
-                        <p>Manage and track your sales prospects</p>
-                    </div>
-                    <button class="btn btn-primary" onclick="openAddProspectModal()">+ Add Prospect</button>
-                </div>
-
-                <div class="section-card full-width">
-                    <div class="table-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Company</th>
-                                    <th>Email</th>
-                                    <th>Title</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="prospectsTable">
-                                <tr>
-                                    <td colspan="6">
-                                        <div class="empty-state">
-                                            <div class="empty-state-icon">👥</div>
-                                            <div class="empty-state-text">No prospects yet</div>
-                                            <div class="empty-state-sub">Click "Add Prospect" to get started</div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ═══════ Campaigns Page ═══════ -->
-            <div class="page" id="page-campaigns">
-                <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
-                    <div>
-                        <h1>Campaigns</h1>
-                        <p>Create and manage outreach campaigns</p>
-                    </div>
-                    <button class="btn btn-primary" onclick="openCreateCampaignModal()">+ New Campaign</button>
-                </div>
-
-                <div id="campaignsList">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">🚀</div>
-                        <div class="empty-state-text">No campaigns yet</div>
-                        <div class="empty-state-sub">Create a campaign to automate outreach to multiple prospects</div>
-                        <button class="btn btn-primary" onclick="openCreateCampaignModal()">Create Campaign</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ═══════ Quick Outreach Page ═══════ -->
-            <div class="page" id="page-outreach">
-                <div class="page-header">
-                    <h1>Quick Outreach</h1>
-                    <p>Send a personalized outreach email to a single prospect instantly</p>
-                </div>
-
-                <div class="section-grid">
-                    <div class="section-card">
-                        <div class="section-header">
-                            <span class="section-title">⚡ Prospect Details</span>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Full Name *</label>
-                            <input type="text" class="form-input" id="qoName" placeholder="e.g. John Smith">
-                        </div>
-
+            <!-- Prospects Tab -->
+            <section id="prospects" class="tab-content">
+                <h2>Prospects Management</h2>
+                <div class="form-section">
+                    <h3>Add New Prospect</h3>
+                    <form id="prospect-form">
                         <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Email *</label>
-                                <input type="email" class="form-input" id="qoEmail" placeholder="john@company.com">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Company *</label>
-                                <input type="text" class="form-input" id="qoCompany" placeholder="Acme Corp">
-                            </div>
+                            <input type="text" id="prospect-name" placeholder="Full Name" required />
+                            <input type="email" id="prospect-email" placeholder="Email Address" required />
                         </div>
-
                         <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Job Title</label>
-                                <input type="text" class="form-input" id="qoTitle" placeholder="VP of Engineering">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Email Tone</label>
-                                <select class="form-select" id="qoTone">
-                                    <option value="professional">Professional</option>
-                                    <option value="casual">Casual</option>
-                                    <option value="consultative">Consultative</option>
-                                </select>
-                            </div>
+                            <input type="text" id="prospect-company" placeholder="Company" required />
+                            <input type="text" id="prospect-title" placeholder="Job Title" />
                         </div>
+                        <textarea id="prospect-notes" placeholder="Notes"></textarea>
+                        <button type="submit" class="btn-primary">Add Prospect</button>
+                    </form>
+                </div>
+                <div class="prospects-list">
+                    <h3>Prospects List</h3>
+                    <div id="prospects-table" class="loading">Loading prospects...</div>
+                </div>
+            </section>
 
-                        <div style="display:flex;gap:12px;margin-top:8px">
-                            <button class="btn btn-primary" id="qoRunBtn" onclick="runQuickOutreach(true)">
-                                🚀 Research & Send
-                            </button>
-                            <button class="btn btn-secondary" onclick="runQuickOutreach(false)">
-                                📝 Draft Only (Don't Send)
-                            </button>
+            <!-- Campaigns Tab -->
+            <section id="campaigns" class="tab-content">
+                <h2>Campaigns</h2>
+                <div class="form-section">
+                    <h3>Create New Campaign</h3>
+                    <form id="campaign-form">
+                        <div class="form-row">
+                            <input type="text" id="campaign-name" placeholder="Campaign Name" required />
                         </div>
-                    </div>
-
-                    <div class="section-card">
-                        <div class="section-header">
-                            <span class="section-title">📧 Generated Email Preview</span>
+                        <div class="form-row">
+                            <select id="campaign-prospect" required>
+                                <option value="">Select Prospect...</option>
+                            </select>
                         </div>
-                        <div id="emailPreviewContainer">
-                            <div class="empty-state">
-                                <div class="empty-state-icon">✍️</div>
-                                <div class="empty-state-text">Fill in prospect details and click Run</div>
-                                <div class="empty-state-sub">The AI will research the prospect and generate a personalized email</div>
-                            </div>
+                        <div class="form-row">
+                            <textarea id="campaign-context" placeholder="Additional context for email generation"></textarea>
                         </div>
-                    </div>
+                        <button type="submit" class="btn-primary">Generate & Create Campaign</button>
+                    </form>
                 </div>
+                <div class="campaigns-list">
+                    <h3>Active Campaigns</h3>
+                    <div id="campaigns-table" class="loading">Loading campaigns...</div>
+                </div>
+            </section>
 
-                <div class="section-card full-width" id="pipelineStatusCard" style="display:none">
-                    <div class="section-header">
-                        <span class="section-title">⚙️ Pipeline Progress</span>
+            <!-- Analytics Tab -->
+            <section id="analytics" class="tab-content">
+                <h2>Analytics & Performance</h2>
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <div class="analytics-label">Total Prospects</div>
+                        <div class="analytics-value" id="total-prospects">-</div>
                     </div>
-                    <div class="pipeline-steps" id="pipelineSteps">
-                        <div class="pipeline-step" data-step="research">🔍 Research</div>
-                        <div class="pipeline-arrow">→</div>
-                        <div class="pipeline-step" data-step="email">✍️ Generate Email</div>
-                        <div class="pipeline-arrow">→</div>
-                        <div class="pipeline-step" data-step="send">📤 Send</div>
-                        <div class="pipeline-arrow">→</div>
-                        <div class="pipeline-step" data-step="crm">📋 Update CRM</div>
-                        <div class="pipeline-arrow">→</div>
-                        <div class="pipeline-step" data-step="track">👀 Track Replies</div>
+                    <div class="analytics-card">
+                        <div class="analytics-label">Campaigns Sent</div>
+                        <div class="analytics-value" id="campaigns-sent">-</div>
                     </div>
-                </div>
-            </div>
-
-            <!-- ═══════ Pipeline Status Page ═══════ -->
-            <div class="page" id="page-pipeline">
-                <div class="page-header">
-                    <h1>Pipeline Status</h1>
-                    <p>System configuration and agent pipeline health</p>
-                </div>
-
-                <div class="stats-grid" id="serviceCards">
-                    <!-- Filled by JS -->
-                </div>
-
-                <div class="section-card full-width">
-                    <div class="section-header">
-                        <span class="section-title">Agent Pipeline Flow</span>
+                    <div class="analytics-card">
+                        <div class="analytics-label">Open Rate</div>
+                        <div class="analytics-value" id="open-rate">-</div>
                     </div>
-                    <div class="pipeline-steps">
-                        <div class="pipeline-step completed">🔍 Research Agent</div>
-                        <div class="pipeline-arrow">→</div>
-                        <div class="pipeline-step completed">✍️ Email Agent</div>
-                        <div class="pipeline-arrow">→</div>
-                        <div class="pipeline-step completed">📤 Gmail Agent</div>
-                        <div class="pipeline-arrow">→</div>
-                        <div class="pipeline-step completed">📋 CRM Agent</div>
-                        <div class="pipeline-arrow">→</div>
-                        <div class="pipeline-step completed">👀 Reply Tracker</div>
+                    <div class="analytics-card">
+                        <div class="analytics-label">Reply Rate</div>
+                        <div class="analytics-value" id="reply-rate">-</div>
                     </div>
                 </div>
-            </div>
+                <div class="detailed-analytics">
+                    <h3>Campaign Performance</h3>
+                    <div id="analytics-details" class="loading">Loading analytics...</div>
+                </div>
+            </section>
         </main>
-    </div>
 
-    <!-- ─── Add Prospect Modal ─── -->
-    <div class="modal-overlay" id="addProspectModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 class="modal-title">Add Prospect</h2>
-                <button class="modal-close" onclick="closeModal('addProspectModal')">×</button>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Full Name *</label>
-                <input type="text" class="form-input" id="mpName" placeholder="John Smith">
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Email *</label>
-                    <input type="email" class="form-input" id="mpEmail" placeholder="john@company.com">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Company *</label>
-                    <input type="text" class="form-input" id="mpCompany" placeholder="Acme Corp">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Job Title</label>
-                    <input type="text" class="form-input" id="mpTitle" placeholder="VP of Engineering">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Industry</label>
-                    <input type="text" class="form-input" id="mpIndustry" placeholder="SaaS / Technology">
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">LinkedIn URL</label>
-                <input type="url" class="form-input" id="mpLinkedin" placeholder="https://linkedin.com/in/johnsmith">
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('addProspectModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="addProspect()">Add Prospect</button>
-            </div>
-        </div>
+        <footer class="glass-footer">
+            <p>AI Sales Outreach Agent v1.0.0 | Powered by OpenAI, Tavily, Airtable & Gmail</p>
+        </footer>
     </div>
-
-    <!-- ─── Create Campaign Modal ─── -->
-    <div class="modal-overlay" id="createCampaignModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 class="modal-title">Create Campaign</h2>
-                <button class="modal-close" onclick="closeModal('createCampaignModal')">×</button>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Campaign Name *</label>
-                <input type="text" class="form-input" id="mcName" placeholder="Q1 SaaS Outreach">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Description</label>
-                <textarea class="form-textarea" id="mcDesc" placeholder="Target SaaS companies in the Series A-B stage..."></textarea>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Email Tone</label>
-                <select class="form-select" id="mcTone">
-                    <option value="professional">Professional</option>
-                    <option value="casual">Casual</option>
-                    <option value="consultative">Consultative</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Select Prospects</label>
-                <div id="campaignProspectCheckboxes" style="max-height:200px;overflow-y:auto;padding:8px;background:var(--bg-glass);border-radius:var(--radius-sm);">
-                    <div class="empty-state" style="padding:16px">
-                        <div class="empty-state-sub">Add prospects first</div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('createCampaignModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="createCampaign()">Create Campaign</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ─── Toast Container ─── -->
-    <div class="toast-container" id="toastContainer"></div>
 
     <script src="/static/app.js"></script>
 </body>
+
 </html>

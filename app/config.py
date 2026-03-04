@@ -20,9 +20,10 @@ class Settings(BaseSettings):
     # --- Tavily Search ---
     tavily_api_key: str = Field(default="", alias="TAVILY_API_KEY")
 
-    # --- Notion CRM ---
-    notion_api_key: str = Field(default="", alias="NOTION_API_KEY")
-    notion_database_id: str = Field(default="", alias="NOTION_DATABASE_ID")
+    # --- Airtable CRM ---
+    airtable_api_key: str = Field(default="", alias="AIRTABLE_API_KEY")
+    airtable_base_id: str = Field(default="", alias="AIRTABLE_BASE_ID")
+    airtable_table_name: str = Field(default="Prospects", alias="AIRTABLE_TABLE_NAME")
 
     # --- Gmail ---
     gmail_credentials_path: str = Field(default="credentials.json", alias="GMAIL_CREDENTIALS_PATH")
@@ -53,8 +54,8 @@ class Settings(BaseSettings):
         return bool(self.tavily_api_key) and not self.tavily_api_key.startswith("tvly-your")
 
     @property
-    def has_notion(self) -> bool:
-        return bool(self.notion_api_key) and not self.notion_api_key.startswith("ntn_your")
+    def has_airtable(self) -> bool:
+        return bool(self.airtable_api_key) and not self.airtable_api_key.startswith("pat_your")
 
     @property
     def has_gmail(self) -> bool:

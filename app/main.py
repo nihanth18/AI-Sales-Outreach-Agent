@@ -82,7 +82,7 @@ async def status():
             "openai": "configured" if settings.has_openai else "not configured",
             "tavily": "configured" if settings.has_tavily else "not configured",
             "gmail": "configured" if settings.has_gmail else "not configured",
-            "notion": "configured" if settings.has_notion else "not configured",
+            "airtable": "configured" if settings.has_airtable else "not configured",
         },
     }
 
@@ -100,7 +100,7 @@ async def startup():
     print(f"   OpenAI:      {'✅' if settings.has_openai else '❌ (mock emails)'}")
     print(f"   Tavily:      {'✅' if settings.has_tavily else '❌ (mock research)'}")
     print(f"   Gmail:       {'✅' if settings.has_gmail else '❌ (mock send)'}")
-    print(f"   Notion CRM:  {'✅' if settings.has_notion else '❌ (mock CRM)'}")
+    print(f"   Airtable:    {'✅' if settings.has_airtable else '❌ (mock CRM)'}")
     print("="*60)
     print(f"   Dashboard:   http://localhost:8000")
     print(f"   API Docs:    http://localhost:8000/docs")

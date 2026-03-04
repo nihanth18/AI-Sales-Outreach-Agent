@@ -1,11 +1,11 @@
 """
-CRM Agent — updates Notion/Airtable with prospect status and outreach history.
+CRM Agent — updates Airtable with prospect status and outreach history.
 """
 
 from typing import Dict, Any
 from datetime import datetime, timedelta
 from app.models import CRMRecord
-from app.tools.crm import notion_crm
+from app.tools.crm import airtable_crm
 from app.database import db
 
 
@@ -13,7 +13,7 @@ async def crm_agent(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     LangGraph node: Update CRM with prospect data and outreach status.
     
-    - Creates or updates prospect page in Notion
+    - Creates or updates prospect record in Airtable
     - Tracks pipeline stage and outreach history
     - Schedules follow-up reminders
     """
@@ -28,13 +28,13 @@ async def crm_agent(state: Dict[str, Any]) -> Dict[str, Any]:
         # Check if prospect already has a CRM record
         existing_record = db.get_crm_record(prospect_data.get("id", ""))
 
-        if existing_record and existing_record.notion_page_id:
+        if existing_record and existing_record.airtable_record_id:
             # Update existing record
             status = _determine_crm_status(state)
             notes = _build_notes(state)
 
-            result = await notion_crm.update_prospect_status(
-                page_id=existing_record.notion_page_id,
+            result = await airtable_crm.update_prospect_status(
+                record_id=existing_record.airtable_record_id,
                 status=status,
                 notes=notes
             )
@@ -47,9 +47,9 @@ async def crm_agent(state: Dict[str, Any]) -> Dict[str, Any]:
 
             print(f"✅ CRM updated: {status}")
         else:
-            # Create new prospect page in Notion
+            # Create new prospect record in Airtable
             notes = _build_notes(state)
-            result = await notion_crm.create_prospect_page(
+            result = await airtable_crm.create_prospect_page(
                 name=prospect_data["name"],
                 email=prospect_data["email"],
                 company=prospect_data["company"],
@@ -61,7 +61,7 @@ async def crm_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             # Save CRM record locally
             crm_record = CRMRecord(
                 prospect_id=prospect_data.get("id", ""),
-                notion_page_id=result.get("page_id"),
+                airtable_record_id=result.get("record_id"),
                 status=prospect_data.get("status", "new"),
                 last_contacted=datetime.utcnow() if email_data.get("sent_at") else None,
                 next_follow_up=datetime.utcnow() + timedelta(days=3),
@@ -70,7 +70,7 @@ async def crm_agent(state: Dict[str, Any]) -> Dict[str, Any]:
             )
             db.save_crm_record(crm_record)
 
-            print(f"✅ CRM record created: {result.get('page_id', 'N/A')}")
+            print(f"✅ CRM record created: {result.get('record_id', 'N/A')}")
 
         return {
             **state,
